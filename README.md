@@ -1,3 +1,15 @@
+---
+page_type: sample
+products:
+- Power Apps
+- Microsoft Azure Logic Apps
+- SharePoint
+- Azure Key Vault
+- Microsoft Teams
+description: Power Apps solution that automates the guest approval and invite process
+urlFragment: microsoft-teams-apps-request-a-guest
+---
+
 # Request-a-guest App Template
 
 | [Documentation](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Home) | [Deployment guide](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Deployment-Guide) | [Architecture](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Architecture) | [Cost Estimates](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Cost-Estimates) | [Data Retention](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Data-Retention)

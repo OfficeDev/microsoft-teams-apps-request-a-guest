@@ -1,0 +1,361 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_DomainCheck_name": {
+            "defaultValue": "DomainCheck",
+            "type": "String"
+        },
+        "runbookName": {
+            "defaultValue": "runbook_Domain-Check",
+            "type": "string"
+        },
+        "location": {
+            "defaultvalue": "",
+            "type": "string"
+        },
+        "resourceGroupName": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "subscriptionId": {
+            "defaultValue": "",
+            "type": "string"
+        },
+         "spoSiteName": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "approverMail": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "AutomationAccountName": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "Singlequote": "'"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_DomainCheck_name')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Check_SharePoint_list_for_Approved_Guest": {
+                            "recurrence": {
+                                "frequency": "Hour",
+                                "interval": 1
+                            },
+                            "splitOn": "@triggerBody()?['value']",
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/onupdateditems')]"
+                            },
+                            "conditions": [
+                                {
+                                    "expression": "@equals(triggerBody()?['Domain']?['Value'],'Pending')"
+                                }
+                            ],
+                            "runtimeConfiguration": {
+                                "concurrency": {
+                                    "runs": 1
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Collect_JSON_output_from_the_runbook": {
+                            "runAfter": {
+                                "Start_Azure_Runbook_passing_domain_as_the_parameter": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "[concat('/subscriptions/@{encodeURIComponent(',variables('singlequote'),parameters('subscriptionId'),variables('singlequote'),')}/resourceGroups/@{encodeURIComponent(',variables('singlequote'),parameters('resourceGroupName'),variables('singlequote'),')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent(',variables('singlequote'),parameters('AutomationAccountName'),variables('singlequote'),')}/jobs/@{encodeURIComponent(body(',variables('singlequote'),'Start_Azure_Runbook_passing_domain_as_the_parameter',variables('singlequote'),')?[',variables('singlequote'),'properties',variables('singlequote'),']?[',variables('singlequote'),'jobId',variables('singlequote'),'])}/output')]",
+                                "queries": {
+                                    "x-ms-api-version": "2015-10-31"
+                                }
+                            }
+                        },
+                        "Extract_domain_from_domain_array": {
+                            "runAfter": {
+                                "Get_guest_domain_from_email_address": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "Domain",
+                                        "type": "string",
+                                        "value": "@{variables('DomainArray')[1]}"
+                                    }
+                                ]
+                            }
+                        },
+                        "Get_UPN": {
+                            "runAfter": {},
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "UPN",
+                                        "type": "string",
+                                        "value": "@triggerBody()?['EmailAddress']"
+                                    }
+                                ]
+                            }
+                        },
+                        "Get_guest_domain_from_email_address": {
+                            "runAfter": {
+                                "Get_UPN": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "DomainArray",
+                                        "type": "array",
+                                        "value": "@split(variables('UPN'),'@') "
+                                    }
+                                ]
+                            }
+                        },
+                        "If_Domain_is_on_the_allow_list,_update_with_authorised": {
+                            "actions": {
+                                "Send_success_email_to_Monitoring_mailbox": {
+                                    "runAfter": {
+                                        "Update_request_with_DomainStatus_Authorised": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "Body": "A new request has been subitted by @{body('Update_request_with_DomainStatus_Authorised')?['Editor']?['Email']} to add a guest from @{variables('Domain')}.\n\nThis domain appears on the allow list.",
+                                            "Subject": "New guest request submitted for an approved domain",
+                                            "To": "[parameters('approverMail')]"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['office365']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/Mail"
+                                    }
+                                },
+                                "Update_request_with_DomainStatus_Authorised": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "Domain": {
+                                                "Value": "Authorised"
+                                            },
+                                            "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                            "Justification": "@triggerBody()?['Justification']",
+                                            "Organisation": "@triggerBody()?['Organisation']",
+                                            "Surname": "@triggerBody()?['Surname']",
+                                            "Title": "@triggerBody()?['Title']"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                            }
+                                        },
+                                        "method": "patch",
+                                        "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Parse_JSON_from_the_runbook": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "else": {
+                                "actions": {
+                                    "Send_failure_email_to_Monitoring_mailbox": {
+                                        "runAfter": {
+                                            "Update_request_with_DomainStatus_Not_Authorised": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "body": {
+                                                "Body": "<p>A new request has been subitted by @{triggerBody()?['Editor']?['Email']} to add a guest from @{variables('Domain')}.<br>\n<br>\n<br>\nThis domain does not appear on the allow list.</p>",
+                                                "Subject": "New guest request submitted for a non approved domain",
+                                                "To": "[parameters('approverMail')]"
+                                            },
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                                }
+                                            },
+                                            "method": "post",
+                                            "path": "/v2/Mail"
+                                        }
+                                    },
+                                    "Update_request_with_DomainStatus_Not_Authorised": {
+                                        "runAfter": {},
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "body": {
+                                                "Domain": {
+                                                    "Value": "Not Authorised"
+                                                },
+                                                "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                                "Justification": "@triggerBody()?['Justification']",
+                                                "Organisation": "@triggerBody()?['Organisation']",
+                                                "Surname": "@triggerBody()?['Surname']",
+                                                "Title": "@triggerBody()?['Title']"
+                                            },
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                                }
+                                            },
+                                            "method": "patch",
+                                            "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                        }
+                                    }
+                                }
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "[concat('@body(''Parse_JSON_from_the_runbook'')?[''', parameters('workflows_DomainCheck_name'), 'Result'']')]",
+                                            true
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Parse_JSON_from_the_runbook": {
+                            "runAfter": {
+                                "Collect_JSON_output_from_the_runbook": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('Collect_JSON_output_from_the_runbook')",
+                                "schema": {
+                                    "properties": {
+                                        "DomainCheckResult": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Set_to_domainstatus_to_not_authorised_until_checked": {
+                            "runAfter": {
+                                "Extract_domain_from_domain_array": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "DomainStatus",
+                                        "type": "string",
+                                        "value": "Not Authorised"
+                                    }
+                                ]
+                            }
+                        },
+                        "Start_Azure_Runbook_passing_domain_as_the_parameter": {
+                            "runAfter": {
+                                "Set_to_domainstatus_to_not_authorised_until_checked": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "properties": {
+                                        "parameters": {
+                                            "queryDomain": "@variables('Domain')"
+                                        }
+                                    }
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                                    }
+                                },
+                                "method": "put",
+                                "path": "[concat('/subscriptions/@{encodeURIComponent(',variables('singlequote'),parameters('subscriptionId'),variables('singlequote'),')}/resourceGroups/@{encodeURIComponent(',variables('singlequote'),parameters('resourceGroupName'),variables('singlequote'),')}/providers/Microsoft.Automation/automationAccounts/@{encodeURIComponent(',variables('singlequote'),parameters('AutomationAccountName'),variables('singlequote'),')}/jobs')]",
+                                "queries": {
+                                    "runbookName": "[parameters('runbookName')]",
+                                    "wait": true,
+                                    "x-ms-api-version": "2015-10-31"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureautomation": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-azureautomation')]",
+                                "connectionName": "requestaguest-azureautomation",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/azureautomation')]"
+                            },
+                            "office365": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-office365')]",
+                                "connectionName": "requestaguest-office365",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/office365')]"
+                            },
+                            "sharepointonline": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-sharepointonline')]",
+                                "connectionName": "requestaguest-sharepointonline",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/sharepointonline')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

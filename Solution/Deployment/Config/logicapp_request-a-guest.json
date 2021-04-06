@@ -1,0 +1,720 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_RequestaGuest_name": {
+            "defaultValue": "RequestaGuest",
+            "type": "String"
+        },
+        "location": {
+            "defaultvalue": "",
+            "type": "string"
+        },
+        "resourceGroupName": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "subscriptionId": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "tenantId": {
+            "defaultValue": "",
+            "type": "string"
+        },
+         "spoSiteName": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "groupId": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "approverMail": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "Singlequote": "'"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_RequestaGuest_name')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Check_Guest_SharePoint_list": {
+                            "recurrence": {
+                                "frequency": "Hour",
+                                "interval": 1
+                            },
+                            "splitOn": "@triggerBody()?['value']",
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/onupdateditems')]"
+                            },
+                            "conditions": [
+                                {
+                                    "expression": "@equals(triggerBody()?['Status']?['Value'],'Approved')"
+                                }
+                            ]
+                        }
+                    },
+                    "actions": {
+                        "Confirm_if_user_who_modified_is_a_guest_approver": {
+                            "runAfter": {
+                                "Initialize_variable_-_Last_modified_by": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "groupIds": [
+                                        "[parameters('groupId')]"
+                                    ]
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuread']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v2/v1.0/users/@{encodeURIComponent(variables('ModifiedBy'))}/checkMemberGroups"
+                            }
+                        },
+                        "Get_secret_-_GuestAppID": {
+                            "runAfter": {
+                                "Initialize_variable_-_InviterUPN": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['keyvault']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/secrets/@{encodeURIComponent('GuestAppID')}/value"
+                            }
+                        },
+                        "Get_secret_-_GuestAppSecret": {
+                            "runAfter": {
+                                "Get_secret_-_GuestAppID": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['keyvault']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/secrets/@{encodeURIComponent('GuestAppSecret')}/value"
+                            }
+                        },
+                        "If_modified_by_is_a_guest_approver_action_the_request": {
+                            "actions": {  
+                                "30_second_Delay_to_ensure_creation_of_Guest_account": {
+                                    "runAfter": {
+                                        "Parsing_JSON_of_graph_call_for_ObjectID_of_Inviter": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Wait",
+                                    "inputs": {
+                                        "interval": {
+                                            "count": 30,
+                                            "unit": "Second"
+                                        }
+                                    }
+                                },
+                                "Confirm_Manager_has_been_set_correctly": {
+                                    "actions": {
+                                        "Add_UPN_of_Manager_to_list_item": {
+                                            "runAfter": {},
+                                            "type": "ApiConnection",
+                                            "inputs": {
+                                                "body": {
+                                                    "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                                    "Justification": "@triggerBody()?['Justification']",
+                                                    "Manager": "@variables('InviterUPN')",
+                                                    "Organisation": "@triggerBody()?['Organisation']",
+                                                    "Surname": "@triggerBody()?['Surname']",
+                                                    "Title": "@triggerBody()?['Title']"
+                                                },
+                                                "host": {
+                                                    "connection": {
+                                                        "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                                    }
+                                                },
+                                                "method": "patch",
+                                                "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(body(',variables('singlequote'),'Update_item_-_Mark_item_as_invited',variables('singlequote'),')?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "HTTP_-_Graph_call_to_set_Guest_Manager_to_inviter": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "else": {
+                                        "actions": {
+                                            "Add_Unknown_to_Manager_field_of_list_item_if_graph_call_failed": {
+                                                "runAfter": {},
+                                                "type": "ApiConnection",
+                                                "inputs": {
+                                                    "body": {
+                                                        "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                                        "Justification": "@triggerBody()?['Justification']",
+                                                        "Manager": "Unknown",
+                                                        "Organisation": "@triggerBody()?['Organisation']",
+                                                        "Surname": "@triggerBody()?['Surname']",
+                                                        "Title": "@triggerBody()?['Title']"
+                                                    },
+                                                    "host": {
+                                                        "connection": {
+                                                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                                        }
+                                                    },
+                                                    "method": "patch",
+                                                    "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "equals": [
+                                                    "@outputs('HTTP_-_Graph_call_to_set_Guest_Manager_to_inviter')['statusCode']",
+                                                    204
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                },
+                                "HTTP_-_Graph_call_to_get_ObjectID_of_Inviter": {
+                                    "runAfter": {
+                                        "Send_success_email_to_Monitoring_mailbox": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Http",
+                                    "inputs": {
+                                        "authentication": {
+                                            "audience": "https://graph.microsoft.com",
+                                            "clientId": "@body('Get_secret_-_GuestAppID')?['value']",
+                                            "secret": "@body('Get_secret_-_GuestAppSecret')?['value']",
+                                            "tenant": "@variables('TenantID')",
+                                            "type": "ActiveDirectoryOAuth"
+                                        },
+                                        "method": "GET",
+                                        "uri": "https://graph.microsoft.com/v1.0/users/?$filter=userprincipalname eq '@{triggerBody()?['Author']?['Email']}'"
+                                    }
+                                },
+                                "HTTP_-_Graph_call_to_invite_api": {
+                                    "runAfter": {},
+                                    "type": "Http",
+                                    "inputs": {
+                                        "authentication": {
+                                            "audience": "https://graph.microsoft.com",
+                                            "clientId": "@body('Get_secret_-_GuestAppID')?['value']",
+                                            "secret": "@body('Get_secret_-_GuestAppSecret')?['value']",
+                                            "tenant": "@variables('TenantID')",
+                                            "type": "ActiveDirectoryOAuth"
+                                        },
+                                        "body": {
+                                            "inviteRedirectUrl": "https://portal.azure.com",
+                                            "invitedUserDisplayName": "@{triggerBody()?['Title']} @{triggerBody()?['Surname']}",
+                                            "invitedUserEmailAddress": "@{variables('UPN')}",
+                                            "sendInvitationMessage": true
+                                        },
+                                        "headers": {
+                                            "Content-type": "application/json"
+                                        },
+                                        "method": "POST",
+                                        "uri": "https://graph.microsoft.com/v1.0/invitations"
+                                    }
+                                },
+                                "HTTP_-_Graph_call_to_set_Guest_Manager_to_inviter": {
+                                    "runAfter": {
+                                        "Parsing_JSON_of_graph_call_for_ObjectID_of_Guest": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Http",
+                                    "inputs": {
+                                        "authentication": {
+                                            "audience": "https://graph.microsoft.com",
+                                            "clientId": "@body('Get_secret_-_GuestAppID')?['value']",
+                                            "secret": "@body('Get_secret_-_GuestAppSecret')?['value']",
+                                            "tenant": "@variables('TenantID')",
+                                            "type": "ActiveDirectoryOAuth"
+                                        },
+                                        "body": {
+                                            "@@odata.id": "https://graph.microsoft.com/v1.0/users/@{variables('InviterObjectID')}"
+                                        },
+                                        "method": "PUT",
+                                        "uri": "https://graph.microsoft.com/v1.0/users/@{variables('GuestObjectID')}/manager/$ref"
+                                    }
+                                },
+                                "HTTP_-_graph_call_to_get_object_ID_of_guest": {
+                                    "runAfter": {
+                                        "30_second_Delay_to_ensure_creation_of_Guest_account": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Http",
+                                    "inputs": {
+                                        "authentication": {
+                                            "audience": "https://graph.microsoft.com",
+                                            "clientId": "@body('Get_secret_-_GuestAppID')?['value']",
+                                            "secret": "@body('Get_secret_-_GuestAppSecret')?['value']",
+                                            "tenant": "@variables('TenantID')",
+                                            "type": "ActiveDirectoryOAuth"
+                                        },
+                                        "method": "GET",
+                                        "uri": "https://graph.microsoft.com/v1.0/users/?$filter=mail eq '@{triggerBody()?['EmailAddress']}'"
+                                    }
+                                },
+                                "Parse_JSON_of_Guest_object": {
+                                    "runAfter": {
+                                        "HTTP_-_graph_call_to_get_object_ID_of_guest": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('HTTP_-_graph_call_to_get_object_ID_of_guest')",
+                                        "schema": {
+                                            "properties": {
+                                                "@@odata.context": {
+                                                    "type": "string"
+                                                },
+                                                "value": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "businessPhones": {
+                                                                "type": "array"
+                                                            },
+                                                            "displayName": {
+                                                                "type": "string"
+                                                            },
+                                                            "givenName": {},
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "jobTitle": {},
+                                                            "mail": {
+                                                                "type": "string"
+                                                            },
+                                                            "mobilePhone": {},
+                                                            "officeLocation": {},
+                                                            "preferredLanguage": {},
+                                                            "surname": {},
+                                                            "userPrincipalName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "businessPhones",
+                                                            "displayName",
+                                                            "givenName",
+                                                            "jobTitle",
+                                                            "mail",
+                                                            "mobilePhone",
+                                                            "officeLocation",
+                                                            "preferredLanguage",
+                                                            "surname",
+                                                            "userPrincipalName",
+                                                            "id"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "Parse_JSON_of_Inviter": {
+                                    "runAfter": {
+                                        "HTTP_-_Graph_call_to_get_ObjectID_of_Inviter": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('HTTP_-_Graph_call_to_get_ObjectID_of_Inviter')",
+                                        "schema": {
+                                            "properties": {
+                                                "@@odata.context": {
+                                                    "type": "string"
+                                                },
+                                                "value": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "businessPhones": {
+                                                                "type": "array"
+                                                            },
+                                                            "displayName": {
+                                                                "type": "string"
+                                                            },
+                                                            "givenName": {},
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "jobTitle": {},
+                                                            "mail": {
+                                                                "type": "string"
+                                                            },
+                                                            "mobilePhone": {},
+                                                            "officeLocation": {},
+                                                            "preferredLanguage": {},
+                                                            "surname": {},
+                                                            "userPrincipalName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "businessPhones",
+                                                            "displayName",
+                                                            "givenName",
+                                                            "jobTitle",
+                                                            "mail",
+                                                            "mobilePhone",
+                                                            "officeLocation",
+                                                            "preferredLanguage",
+                                                            "surname",
+                                                            "userPrincipalName",
+                                                            "id"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "Parsing_JSON_of_graph_call_for_ObjectID_of_Guest": {
+                                    "foreach": "@body('Parse_JSON_of_Guest_object')?['value']",
+                                    "actions": {
+                                        "Set_variable_of_GuestObjectID": {
+                                            "runAfter": {},
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "GuestObjectID",
+                                                "value": "@items('Parsing_JSON_of_graph_call_for_ObjectID_of_Guest')?['id']"
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Parse_JSON_of_Guest_object": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Foreach"
+                                },
+                                "Parsing_JSON_of_graph_call_for_ObjectID_of_Inviter": {
+                                    "foreach": "@body('Parse_JSON_of_Inviter')?['value']",
+                                    "actions": {
+                                        "Set_variable": {
+                                            "runAfter": {
+                                                "Set_variable_-_InviterObjectID": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "InviterUPN",
+                                                "value": "@items('Parsing_JSON_of_graph_call_for_ObjectID_of_Inviter')?['userPrincipalName']"
+                                            }
+                                        },
+                                        "Set_variable_-_InviterObjectID": {
+                                            "runAfter": {},
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "InviterObjectID",
+                                                "value": "@items('Parsing_JSON_of_graph_call_for_ObjectID_of_Inviter')?['id']"
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Parse_JSON_of_Inviter": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Foreach"
+                                },
+                                "Send_success_email_to_Monitoring_mailbox": {
+                                    "runAfter": {
+                                        "Update_item_-_Mark_item_as_invited": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "Body": "<p>Guest User: @{triggerBody()?['EmailAddress']}<br>\nOrganisation: @{triggerBody()?['Organisation']}<br>\nJustification: @{body('Update_item_-_Mark_item_as_invited')['Justification']}<br>\nRequested By: @{triggerBody()?['Author']?['Email']}<br>\nRequested date: @{triggerBody()?['Created']}<br>\nApproved by: @{triggerBody()?['Editor']?['Email']}<br>\nApprover comments: @{triggerBody()?['Comments']}<br>\n<br>\nManager - ObjectID = @{variables('InviterObjectID')}</p>",
+                                            "Subject": "New guest user invited @{body('Update_item_-_Mark_item_as_invited')['EmailAddress']}",
+                                            "To": "[parameters('approverMail')]"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['office365']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/v2/Mail"
+                                    }
+                                },
+                                "Update_item_-_Mark_item_as_invited": {
+                                    "runAfter": {
+                                        "HTTP_-_Graph_call_to_invite_api": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                            "Justification": "@triggerBody()?['Justification']",
+                                            "Organisation": "@triggerBody()?['Organisation']",
+                                            "Status": {
+                                                "Value": "Invited"
+                                            },
+                                            "Surname": "@triggerBody()?['Surname']",
+                                            "Title": "@triggerBody()?['Title']"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                            }
+                                        },
+                                        "method": "patch",
+                                        "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Confirm_if_user_who_modified_is_a_guest_approver": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "else": {
+                                "actions": {
+                                    "Send_decline_email_to_Monitoring_mailbox": {
+                                        "runAfter": {
+                                            "Update_Item_-_Mark_as_Declined": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "body": {
+                                                "Body": "<p>An attempt was made to add a guest by an unauthorised user.<br>\n<br>\nGuest User: @{triggerBody()?['EmailAddress']}<br>\nOrganisation: @{triggerBody()?['Organisation']}<br>\nJustification: @{body('Update_Item_-_Mark_as_Declined')['Justification']}<br>\nRequested By: @{triggerBody()?['Author']?['Email']}<br>\nRequested date: @{triggerBody()?['Created']}<br>\nApproval attempted by: @{triggerBody()?['Editor']?['Email']}</p>",
+                                                "Subject": "@{body('Update_Item_-_Mark_as_Declined')['EmailAddress']}Guest user declined  ",
+                                                "To": "[parameters('approverMail')]"
+                                            },
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                                }
+                                            },
+                                            "method": "post",
+                                            "path": "/v2/Mail"
+                                        }
+                                    },
+                                    "Update_Item_-_Mark_as_Declined": {
+                                        "runAfter": {},
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "body": {
+                                                "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                                "Justification": "@triggerBody()?['Justification']",
+                                                "Organisation": "@triggerBody()?['Organisation']",
+                                                "Status": {
+                                                    "Value": "Declined"
+                                                },
+                                                "Surname": "@triggerBody()?['Surname']",
+                                                "Title": "@triggerBody()?['Title']"
+                                            },
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                                }
+                                            },
+                                            "method": "patch",
+                                            "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                        }
+                                    }
+                                }
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "contains": [
+                                            "@body('Confirm_if_user_who_modified_is_a_guest_approver')?['value']",
+                                            "[parameters('groupId')]"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Initialize_variable_-_InviterUPN": {
+                            "runAfter": {
+                                "Initialize_variable_-_GuestObjectID": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "InviterUPN",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_-_GuestObjectID": {
+                            "runAfter": {
+                                "Initialize_variable_-_InviterObjectID": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "GuestObjectID",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_-_InviterObjectID": {
+                            "runAfter": {
+                                "Initialize_variable_-_Tenant_ID": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "InviterObjectID",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_-_Last_modified_by": {
+                            "runAfter": {
+                                "Get_secret_-_GuestAppSecret": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "ModifiedBy",
+                                        "type": "string",
+                                        "value": "@triggerBody()?['Editor']?['Email']"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_-_Tenant_ID": {
+                            "runAfter": {
+                                "Initialize_variable_-_UPN_of_guest": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "TenantID",
+                                        "type": "string",
+                                        "value": "[parameters('tenantId')]"
+                                    }
+                                ]
+                            }
+                        },
+                        "Initialize_variable_-_UPN_of_guest": {
+                            "runAfter": {},
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "UPN",
+                                        "type": "string",
+                                        "value": "@triggerBody()?['EmailAddress']"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azuread": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-azuread')]",
+                                "connectionName": "requestaguest-azuread",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/azuread')]"
+                            },
+                            "keyvault": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-keyvault')]",
+                                "connectionName": "requestaguest-keyvault",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/keyvault')]"
+                            },
+                            "office365": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-office365')]",
+                                "connectionName": "requestaguest-office365",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/office365')]"
+                            },
+                            "sharepointonline": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-sharepointonline')]",
+                                "connectionName": "requestaguest-sharepointonline",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/sharepointonline')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<pnp:Provisioning xmlns:pnp="http://schemas.dev.office.com/PnP/2020/02/ProvisioningSchema">
+  <pnp:Preferences Generator="PnP.Framework, Version=1.3.0.0, Culture=neutral, PublicKeyToken=null" />
+  <pnp:Templates ID="CONTAINER-TEMPLATE-ECE68F946CE1475396BEC5D2FD0CC7FC">
+    <pnp:ProvisioningTemplate ID="TEMPLATE-ECE68F946CE1475396BEC5D2FD0CC7FC" Version="1" BaseSiteTemplate="GROUP#0" Scope="RootSite">
+      <pnp:Lists>
+        <pnp:ListInstance Title="Guests" Description="" DocumentTemplate="" OnQuickLaunch="true" TemplateType="100" Url="Lists/Guests" MinorVersionLimit="0" MaxVersionLimit="0" DraftVersionVisibility="0" TemplateFeatureID="00bfea71-de22-43b2-a848-c05709900100" EnableFolderCreation="false" DefaultDisplayFormUrl="{site}/Lists/Guests/DispForm.aspx" DefaultEditFormUrl="{site}/Lists/Guests/EditForm.aspx" DefaultNewFormUrl="{site}/Lists/Guests/NewForm.aspx" ImageUrl="/_layouts/15/images/itgen.png?rev=47" IrmExpire="false" IrmReject="false" IsApplicationList="false" ReadSecurity="2" WriteSecurity="2" ValidationFormula="" ValidationMessage="">
+          <pnp:ContentTypeBindings>
+            <pnp:ContentTypeBinding ContentTypeID="0x01" Default="true" />
+            <pnp:ContentTypeBinding ContentTypeID="0x0120" />
+          </pnp:ContentTypeBindings>
+          <pnp:Views>
+            <View Name="{1CA6C6D6-7D11-4B53-8A2F-84EB21C9B3FE}" DefaultView="TRUE" MobileView="TRUE" MobileDefaultView="TRUE" Type="HTML" DisplayName="All Items" Url="{site}/Lists/Guests/AllItems.aspx" Level="1" BaseViewID="1" ContentTypeID="0x" ImageUrl="/_layouts/15/images/generic.png?rev=47">
+              <Query />
+              <ViewFields>
+                <FieldRef Name="LinkTitle" />
+                <FieldRef Name="Surname" />
+                <FieldRef Name="Organisation" />
+                <FieldRef Name="EmailAddress" />
+                <FieldRef Name="Justification" />
+                <FieldRef Name="Status" />
+                <FieldRef Name="Domain" />
+                <FieldRef Name="Comments" />
+                <FieldRef Name="Approver" />
+                <FieldRef Name="Manager" />
+              </ViewFields>
+              <RowLimit Paged="TRUE">30</RowLimit>
+              <JSLink>clienttemplates.js</JSLink>
+              <CustomFormatter />
+            </View>
+          </pnp:Views>
+          <pnp:Fields>
+            <Field DisplayName="Surname" Format="Dropdown" IsModern="TRUE" MaxLength="255" Name="Surname" Title="Surname" Type="Text" ID="{734a8b70-bd80-42a2-ad8a-a414b1cf437a}" SourceID="{{listid:Guests}}" StaticName="Surname" ColName="nvarchar4" RowOrdinal="0" CustomFormatter="" Required="TRUE" EnforceUniqueValues="FALSE" Indexed="FALSE" Version="1" />
+            <Field DisplayName="Organisation" Format="Dropdown" IsModern="TRUE" MaxLength="255" Name="Organisation" Title="Organisation" Type="Text" ID="{ce68a18c-3bc7-490b-96fb-478410ee6905}" SourceID="{{listid:Guests}}" StaticName="Organisation" ColName="nvarchar5" RowOrdinal="0" CustomFormatter="" Required="TRUE" EnforceUniqueValues="FALSE" Indexed="FALSE" Version="1" />
+            <Field DisplayName="Email Address" Format="Dropdown" IsModern="TRUE" MaxLength="255" Name="EmailAddress" Title="Email Address" Type="Text" ID="{23fbdbaf-62ee-4967-aa7d-fbe0fc6e40b0}" SourceID="{{listid:Guests}}" StaticName="EmailAddress" ColName="nvarchar6" RowOrdinal="0" CustomFormatter="" Required="TRUE" EnforceUniqueValues="FALSE" Indexed="FALSE" Version="1" />
+            <Field AppendOnly="FALSE" ClientSideComponentId="00000000-0000-0000-0000-000000000000" DisplayName="Justification" Format="Dropdown" IsolateStyles="FALSE" Name="Justification" Required="TRUE" RichText="FALSE" RichTextMode="Compatible" Title="Justification" Type="Note" ID="{a663e458-0b85-46ad-b9e0-5490809c1eac}" Version="3" StaticName="Justification" SourceID="{{listid:Guests}}" ColName="ntext2" RowOrdinal="0" />
+            <Field Name="Status" FromBaseType="FALSE" Type="Choice" DisplayName="Status" Required="FALSE" EnforceUniqueValues="FALSE" Indexed="FALSE" Format="Dropdown" FillInChoice="FALSE" ID="{39776f07-545a-4ef3-8364-5d6aa44c7617}" Version="3" StaticName="Status" SourceID="{{listid:Guests}}" ColName="nvarchar7" RowOrdinal="0" CustomFormatter="">
+              <Default>Pending</Default>
+              <CHOICES>
+                <CHOICE>Pending</CHOICE>
+                <CHOICE>Approved</CHOICE>
+                <CHOICE>Declined</CHOICE>
+                <CHOICE>Invited</CHOICE>
+              </CHOICES>
+            </Field>
+            <Field ClientSideComponentId="00000000-0000-0000-0000-000000000000" CustomFormatter="{&quot;elmType&quot;:&quot;div&quot;,&quot;style&quot;:{&quot;flex-wrap&quot;:&quot;wrap&quot;,&quot;display&quot;:&quot;flex&quot;},&quot;children&quot;:[{&quot;elmType&quot;:&quot;div&quot;,&quot;style&quot;:{&quot;box-sizing&quot;:&quot;border-box&quot;,&quot;padding&quot;:&quot;4px 8px 5px 8px&quot;,&quot;display&quot;:&quot;flex&quot;,&quot;border-radius&quot;:&quot;16px&quot;,&quot;height&quot;:&quot;24px&quot;,&quot;align-items&quot;:&quot;center&quot;,&quot;white-space&quot;:&quot;nowrap&quot;,&quot;overflow&quot;:&quot;hidden&quot;,&quot;margin&quot;:&quot;4px 4px 4px 4px&quot;},&quot;attributes&quot;:{&quot;class&quot;:{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Unknown&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Authorised&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Not Authorised&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Pending&quot;]},&quot;&quot;,&quot;sp-field-borderAllRegular sp-field-borderAllSolid sp-css-borderColor-neutralSecondary&quot;]}]}]}]}]}},&quot;children&quot;:[{&quot;elmType&quot;:&quot;span&quot;,&quot;style&quot;:{&quot;line-height&quot;:&quot;16px&quot;,&quot;height&quot;:&quot;14px&quot;},&quot;attributes&quot;:{&quot;iconName&quot;:{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Unknown&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Authorised&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Not Authorised&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Pending&quot;]},&quot;&quot;,&quot;&quot;]}]}]}]}]}}},{&quot;elmType&quot;:&quot;span&quot;,&quot;style&quot;:{&quot;overflow&quot;:&quot;hidden&quot;,&quot;text-overflow&quot;:&quot;ellipsis&quot;,&quot;padding&quot;:&quot;0 3px&quot;},&quot;txtContent&quot;:&quot;[$Domain]&quot;,&quot;attributes&quot;:{&quot;class&quot;:{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Unknown&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Authorised&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Not Authorised&quot;]},&quot;&quot;,{&quot;operator&quot;:&quot;:&quot;,&quot;operands&quot;:[{&quot;operator&quot;:&quot;==&quot;,&quot;operands&quot;:[&quot;[$Domain]&quot;,&quot;Pending&quot;]},&quot;&quot;,&quot;&quot;]}]}]}]}]}}}]}],&quot;templateId&quot;:&quot;BgColorChoicePill&quot;}" DisplayName="Domain" FillInChoice="FALSE" Format="Dropdown" Name="Domain" Title="Domain" Type="Choice" ID="{cf3ae866-f86e-4095-a3ce-9675694c45e3}" Version="4" StaticName="Domain" SourceID="{{listid:Guests}}" ColName="nvarchar8" RowOrdinal="0">
+              <CHOICES>
+                <CHOICE>Unknown</CHOICE>
+                <CHOICE>Authorised</CHOICE>
+                <CHOICE>Not Authorised</CHOICE>
+                <CHOICE>Pending</CHOICE>
+              </CHOICES>
+              <Default>Pending</Default>
+            </Field>
+            <Field DisplayName="Comments" Format="Dropdown" IsModern="TRUE" MaxLength="255" Name="Comments" Title="Comments" Type="Text" ID="{55b7c188-f88a-4146-bb67-6bafa290071b}" SourceID="{{listid:Guests}}" StaticName="Comments" ColName="nvarchar9" RowOrdinal="0" />
+            <Field DisplayName="Approver" Format="Dropdown" IsModern="TRUE" MaxLength="255" Name="Approver" Title="Approver" Type="Text" ID="{4b752568-6a2d-45c7-babe-a56e3b801948}" SourceID="{{listid:Guests}}" StaticName="Approver" ColName="nvarchar10" RowOrdinal="0" />
+            <Field DisplayName="Manager" Format="Dropdown" IsModern="TRUE" MaxLength="255" Name="Manager" Title="Manager" Type="Text" ID="{1bcb8b78-4a2f-411a-a040-39a6ddde03f0}" SourceID="{{listid:Guests}}" StaticName="Manager" ColName="nvarchar11" RowOrdinal="0" />
+          </pnp:Fields>
+          <pnp:Webhooks>
+            <pnp:Webhook ServerNotificationUrl="https://uk-001.azure-apim.net/apim/sharepointonline/ontableupdatedhook?r=https%253a%252f%252fprod-28.uksouth.logic.azure.com%252fworkflows%252f10b54601671d41389a559bae628c75cf%252ftriggers%252fWhen_an_item_is_created_or_modified%252fpaths%252finvoke%253fapi-version%253d2016-06-01%2526sp%253d%25252Ftriggers%25252FWhen_an_item_is_created_or_modified%25252Frun%25252C%25252Ftriggers%25252FWhen_an_item_is_created_or_modified%25252Fread%2526sv%253d1.0%2526sig%253dbIaP_Kc6DZIFtQvv-qhB9ORYMTp7i6g4K_gK9tfUn2g" ExpiresInDays="3" />
+            <pnp:Webhook ServerNotificationUrl="https://uksouth1.pushnp.svc.ms/notifications?token=05773f2d-6225-4d96-9bed-21ca2e193bf3" ExpiresInDays="1" />
+          </pnp:Webhooks>
+        </pnp:ListInstance>
+      </pnp:Lists>
+    </pnp:ProvisioningTemplate>
+  </pnp:Templates>
+</pnp:Provisioning>

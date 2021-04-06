@@ -1,0 +1,621 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_teamsapproval_name": {
+            "defaultValue": "teamsApproval",
+            "type": "String"
+        },
+        "location": {
+            "defaultvalue": "",
+            "type": "string"
+        },
+        "resourceGroupName": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "subscriptionId": {
+            "defaultValue": "",
+            "type": "string"
+        },
+         "spoSiteName": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "teamsGroupId": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "teamsChannelId": {
+            "defaultValue": "",
+            "type": "String"
+        }
+    },
+    "variables": {
+        "Singlequote": "'"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_teamsapproval_name')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_an_item_or_a_file_is_modified": {
+                            "recurrence": {
+                                "frequency": "Hour",
+                                "interval": 1
+                            },
+                            "splitOn": "@triggerBody()?['value']",
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/onchangeditems')]"
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Check_for_declined_domain": {
+                            "actions": {
+                                "Post_your_own_adaptive_card_as_the_Flow_bot_to_a_user": {
+                                    "runAfter": {
+                                        "Set_domainNotAllowed_Adaptive_Card": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "messageBody": "@variables('domainNotAllowed')",
+                                            "recipient": {
+                                                "to": "@triggerBody()?['Author']?['Email']"
+                                            }
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['teams']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/flowbot/actions/adaptivecard/recipienttypes/user"
+                                    }
+                                },
+                                "Set_domainNotAllowed_Adaptive_Card": {
+                                    "runAfter": {},
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "domainNotAllowed",
+                                        "value": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Large\",\n            \"weight\": \"Bolder\",\n            \"text\": \"Guest Request declined\",\n            \"color\": \"Attention\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"weight\": \"Bolder\",\n                            \"text\": \"**Guest:** @{triggerBody()?['EmailAddress']}\",\n                            \"wrap\": true\n                        }\n                    ],\n                    \"width\": \"stretch\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Your request has been declined after review.**\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"It was refused by your organization to add the domain of your requested guest to the tenant.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Please check the response details for  further details or reach out to your approval team.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Request Details:\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\",\n            \"separator\": true,\n            \"spacing\": \"Large\",\n            \"color\": \"Accent\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**First Name:** @{triggerBody()?['Title']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Last Name:** @{triggerBody()?['Surname']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Organization:** @{triggerBody()?['Organisation']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Response Details:\",\n            \"wrap\": true,\n            \"separator\": true,\n            \"spacing\": \"Large\",\n            \"color\": \"Accent\",\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Declined by:** @{triggerBody()?['Approver']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Comment:** @{triggerBody()?['Comments']}\",\n            \"wrap\": true\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.2\"\n}"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Guest_invited": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@triggerBody()?['Status']?['Value']",
+                                            "Declined"
+                                        ]
+                                    },
+                                    {
+                                        "equals": [
+                                            "@triggerBody()?['Domain']?['Value']",
+                                            "Not Authorised"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Check_for_new_guest_request": {
+                            "actions": {
+                                "Check_if_Domain_is_authorized": {
+                                    "actions": {
+                                        "Check_Response": {
+                                            "actions": {
+                                                "Update_item_-_approved": {
+                                                    "runAfter": {},
+                                                    "type": "ApiConnection",
+                                                    "inputs": {
+                                                        "body": {
+                                                            "Approver": "@{body('Post_Guest_Approval_to_Channel')?['responder']?['userPrincipalName']}",
+                                                            "Comments": "@{body('Post_Guest_Approval_to_Channel')?['data']?['approveComment']}",
+                                                            "Domain": {
+                                                                "Value": "Authorised"
+                                                            },
+                                                            "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                                            "Justification": "@triggerBody()?['Justification']",
+                                                            "Organisation": "@triggerBody()?['Organisation']",
+                                                            "Status": {
+                                                                "Value": "Approved"
+                                                            },
+                                                            "Surname": "@triggerBody()?['Surname']",
+                                                            "Title": "@triggerBody()?['Title']"
+                                                        },
+                                                        "host": {
+                                                            "connection": {
+                                                                "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                                            }
+                                                        },
+                                                        "method": "patch",
+                                                        "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                                    }
+                                                }
+                                            },
+                                            "runAfter": {
+                                                "Post_Guest_Approval_to_Channel": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "else": {
+                                                "actions": {
+                                                    "Post_user_declined_message_to_user": {
+                                                        "runAfter": {
+                                                            "Set_requestDecline_Adaptive_Card": [
+                                                                "Succeeded"
+                                                            ]
+                                                        },
+                                                        "type": "ApiConnection",
+                                                        "inputs": {
+                                                            "body": {
+                                                                "messageBody": "@variables('requestDeclined')",
+                                                                "recipient": {
+                                                                    "to": "@body('Update_item_-_declined')?['Author']?['Email']"
+                                                                }
+                                                            },
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['teams']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "post",
+                                                            "path": "/flowbot/actions/adaptivecard/recipienttypes/user"
+                                                        }
+                                                    },
+                                                    "Set_requestDecline_Adaptive_Card": {
+                                                        "runAfter": {
+                                                            "Update_item_-_declined": [
+                                                                "Succeeded"
+                                                            ]
+                                                        },
+                                                        "type": "SetVariable",
+                                                        "inputs": {
+                                                            "name": "requestDeclined",
+                                                            "value": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Large\",\n            \"weight\": \"Bolder\",\n            \"text\": \"Guest Request declined\",\n            \"color\": \"Attention\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"weight\": \"Bolder\",\n                            \"text\": \"**Guest:** @{body('Update_item_-_declined')['EmailAddress']}\",\n                            \"wrap\": true\n                        }\n                    ],\n                    \"width\": \"stretch\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Your request has been declined.\\nPlease check the comments for further details.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Declined by:** @{body('Post_Guest_Approval_to_Channel')?['responder']?['userPrincipalName']}\",\n            \"wrap\": true,\n            \"separator\": true,\n            \"spacing\": \"Large\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Reason:** @{body('Post_Guest_Approval_to_Channel')?['data']?['rejectComment']}\",\n            \"wrap\": true\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.2\"\n}"
+                                                        }
+                                                    },
+                                                    "Update_item_-_declined": {
+                                                        "runAfter": {},
+                                                        "type": "ApiConnection",
+                                                        "inputs": {
+                                                            "body": {
+                                                                "Approver": "@{body('Post_Guest_Approval_to_Channel')?['responder']?['userPrincipalName']}",
+                                                                "Comments": "@{body('Post_Guest_Approval_to_Channel')?['data']?['rejectComment']}",
+                                                                "Domain": {
+                                                                    "Value": "Authorised"
+                                                                },
+                                                                "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                                                "Justification": "@triggerBody()?['Justification']",
+                                                                "Organisation": "@triggerBody()?['Organisation']",
+                                                                "Status": {
+                                                                    "Value": "Declined"
+                                                                },
+                                                                "Surname": "@triggerBody()?['Surname']",
+                                                                "Title": "@triggerBody()?['Title']"
+                                                            },
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "patch",
+                                                            "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "expression": {
+                                                "and": [
+                                                    {
+                                                        "equals": [
+                                                            "@body('Post_Guest_Approval_to_Channel')?['submitActionId']",
+                                                            "Approve"
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            "type": "If"
+                                        },
+                                        "Guest_Approval_Adaptive_Card": {
+                                            "runAfter": {},
+                                            "type": "SetVariable",
+                                            "inputs": {
+                                                "name": "TeamsAdaptiveCardApproval",
+                                                "value": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Pending Guest Approval\",\n            \"size\": \"Large\",\n            \"weight\": \"Bolder\",\n            \"color\": \"Accent\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"items\": [\n                        {\n                            \"type\": \"FactSet\",\n                            \"facts\": [\n                                {\n                                    \"title\": \"**Requested by:**\",\n                                    \"value\": \"@{triggerBody()?['Author']?['DisplayName']}\"\n                                },\n                                {\n                                    \"title\": \"**Date created:** \",\n                                    \"value\": \"@{formatDateTime(triggerBody()?['Created'],'F')} UTC\"\n                                }\n                            ],\n                            \"spacing\": \"Large\"\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"Guest Details:\",\n                            \"wrap\": true,\n                            \"separator\": true,\n                            \"spacing\": \"Large\",\n                            \"color\": \"Accent\",\n                            \"weight\": \"Bolder\"\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"**First Name:** @{triggerBody()?['Title']}\",\n                            \"isSubtle\": true,\n                            \"wrap\": true\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"**Last Name:** @{triggerBody()?['Surname']}\",\n                            \"isSubtle\": true,\n                            \"wrap\": true,\n                            \"spacing\": \"None\"\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"**Mail-Address:** @{triggerBody()?['EmailAddress']}\",\n                            \"isSubtle\": true,\n                            \"wrap\": true,\n                            \"spacing\": \"None\"\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"**Organization:** @{triggerBody()?['Organisation']}\",\n                            \"isSubtle\": true,\n                            \"wrap\": true,\n                            \"spacing\": \"None\"\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"**Business Justification:** @{triggerBody()?['Justification']}\",\n                            \"isSubtle\": true,\n                            \"wrap\": true\n                        }\n                    ],\n                    \"width\": \"stretch\"\n                }\n            ]\n        }\n    ],\n    \"actions\": [\n        {\n            \"type\": \"Action.ShowCard\",\n            \"title\": \"Approve\",\n            \"card\": {\n                \"type\": \"AdaptiveCard\",\n                \"body\": [\n                    {\n                        \"type\": \"Input.Text\",\n                        \"id\": \"approveComment\",\n                        \"placeholder\": \"Add a comment\",\n                        \"isMultiline\": true\n                    }\n                ],\n                \"actions\": [\n                    {\n                        \"type\": \"Action.Submit\",\n                        \"id\": \"Approve\",\n                        \"title\": \"Submit\"\n                    }\n                ],\n                \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\"\n            },\n            \"style\": \"destructive\"\n        },\n        {\n            \"type\": \"Action.ShowCard\",\n            \"title\": \"Reject\",\n            \"card\": {\n                \"type\": \"AdaptiveCard\",\n                \"body\": [\n                    {\n                        \"type\": \"Input.Text\",\n                        \"id\": \"rejectComment\",\n                        \"placeholder\": \"Add a comment\",\n                        \"isMultiline\": true\n                    }\n                ],\n                \"actions\": [\n                    {\n                        \"type\": \"Action.Submit\",\n                        \"id\": \"Reject\",\n                        \"title\": \"Submit\"\n                    }\n                ],\n                \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\"\n            }\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.2\"\n}"
+                                            }
+                                        },
+                                        "Post_Guest_Approval_to_Channel": {
+                                            "runAfter": {
+                                                "Guest_Approval_Adaptive_Card": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "ApiConnectionWebhook",
+                                            "inputs": {
+                                                "body": {
+                                                    "body": {
+                                                        "messageBody": "@variables('TeamsAdaptiveCardApproval')",
+                                                        "recipient": {
+                                                            "channelId": "[parameters('teamsChannelId')]"
+                                                        },
+                                                        "shouldUpdateCard": true,
+                                                        "updateMessage": "Guest @{triggerBody()?['EmailAddress']} was reviewed"
+                                                    },
+                                                    "notificationUrl": "@{listCallbackUrl()}"
+                                                },
+                                                "host": {
+                                                    "connection": {
+                                                        "name": "@parameters('$connections')['teams']['connectionId']"
+                                                    }
+                                                },
+                                                "path": "/flowbot/actions/flowcontinuation/recipienttypes/channel/$subscriptions",
+                                                "queries": {
+                                                    "groupId": "[parameters('teamsGroupId')]"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {},
+                                    "else": {
+                                        "actions": {
+                                            "Condition": {
+                                                "actions": {
+                                                    "Post_domain_not_allowed_message_to_approval_team": {
+                                                        "runAfter": {
+                                                            "Post_domain_not_allowed_message_to_user": [
+                                                                "Succeeded"
+                                                            ]
+                                                        },
+                                                        "type": "ApiConnection",
+                                                        "inputs": {
+                                                            "body": {
+                                                                "messageBody": "@variables('adminDomainValidation')",
+                                                                "recipient": {
+                                                                    "channelId": "[parameters('teamsChannelId')]"
+                                                                }
+                                                            },
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['teams']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "post",
+                                                            "path": "/flowbot/actions/adaptivecard/recipienttypes/channel",
+                                                            "queries": {
+                                                                "groupId": "[parameters('teamsGroupId')]"
+                                                            }
+                                                        }
+                                                    },
+                                                    "Post_domain_not_allowed_message_to_user": {
+                                                        "runAfter": {
+                                                            "Set_adminDomainValidation_Adaptive_Card": [
+                                                                "Succeeded"
+                                                            ]
+                                                        },
+                                                        "type": "ApiConnection",
+                                                        "inputs": {
+                                                            "body": {
+                                                                "messageBody": "@variables('domainNotAllowedValidationRequired')",
+                                                                "recipient": {
+                                                                    "to": "@triggerBody()?['Author']?['Email']"
+                                                                }
+                                                            },
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['teams']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "post",
+                                                            "path": "/flowbot/actions/adaptivecard/recipienttypes/user"
+                                                        }
+                                                    },
+                                                    "Set_adminDomainValidation_Adaptive_Card": {
+                                                        "runAfter": {
+                                                            "Set_domainNotAllowedValidationRequired_Adaptive_Card": [
+                                                                "Succeeded"
+                                                            ]
+                                                        },
+                                                        "type": "SetVariable",
+                                                        "inputs": {
+                                                            "name": "adminDomainValidation",
+                                                            "value": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Large\",\n            \"weight\": \"Bolder\",\n            \"text\": \"Domain not allowed  - Validation Required\",\n            \"color\": \"Accent\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"weight\": \"Bolder\",\n                            \"text\": \"**Guest:** @{triggerBody()?['EmailAddress']}\",\n                            \"wrap\": true\n                        }\n                    ],\n                    \"width\": \"stretch\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"The **domain** of the requested guest is **currently not allowed in your organization**.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Request Details:\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\",\n            \"separator\": true,\n            \"spacing\": \"Large\",\n            \"color\": \"Accent\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**First Name:** @{triggerBody()?['Title']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Last Name:** @{triggerBody()?['Surname']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Organization:** @{triggerBody()?['Organisation']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Requested By:** @{triggerBody()?['Author']?['DisplayName']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Business Justification:** @{triggerBody()?['Justification']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Option 1:\",\n            \"wrap\": true,\n            \"separator\": true,\n            \"spacing\": \"Large\",\n            \"color\": \"Attention\",\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"The tenant administrator needs to add the domain to your tenant. After the domain was added to the tenant, please **resubmit** the request in the **request-a-guest app**.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Option 2:\",\n            \"wrap\": true,\n            \"color\": \"Attention\",\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Decline the request in the **request-a-guest app**. The user will then be informed that this domain is not an allowed domain in your organization.\",\n            \"wrap\": true\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.2\"\n}"
+                                                        }
+                                                    },
+                                                    "Set_domainNotAllowedValidationRequired_Adaptive_Card": {
+                                                        "runAfter": {},
+                                                        "type": "SetVariable",
+                                                        "inputs": {
+                                                            "name": "domainNotAllowedValidationRequired",
+                                                            "value": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Large\",\n            \"weight\": \"Bolder\",\n            \"text\": \"Guest Request  pending\",\n            \"color\": \"Accent\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"weight\": \"Bolder\",\n                            \"text\": \"**Guest:** @{triggerBody()?['EmailAddress']}\",\n                            \"wrap\": true\n                        }\n                    ],\n                    \"width\": \"stretch\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Your request may take longer this time.\\n\\nThe requested domain is currently **not allowed by your organization**.\\n\\nThe guest approval team was informed about your request.\\nThe domain needs to be added before your request can be processed.\\n\\nThanks for your patience.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Please contact your Administrator for further details.\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\",\n            \"separator\": true,\n            \"spacing\": \"Large\",\n            \"color\": \"Accent\"\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.2\"\n}"
+                                                        }
+                                                    },
+                                                    "Update_item": {
+                                                        "runAfter": {
+                                                            "Post_domain_not_allowed_message_to_approval_team": [
+                                                                "Succeeded"
+                                                            ]
+                                                        },
+                                                        "type": "ApiConnection",
+                                                        "inputs": {
+                                                            "body": {
+                                                                "Comments": "The domain is currently not allowed by your organization. Please reach out the your administrator or the approval team for further details.",
+                                                                "Domain": {
+                                                                    "Value": "Not Authorised"
+                                                                },
+                                                                "EmailAddress": "@triggerBody()?['EmailAddress']",
+                                                                "Justification": "@triggerBody()?['Justification']",
+                                                                "Organisation": "@triggerBody()?['Organisation']",
+                                                                "Status": {
+                                                                    "Value": "Pending"
+                                                                },
+                                                                "Surname": "@triggerBody()?['Surname']",
+                                                                "Title": "@triggerBody()?['Title']"
+                                                            },
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "patch",
+                                                            "path": "[concat('/datasets/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),parameters('spoSiteName'),variables('singlequote'),'))}/tables/@{encodeURIComponent(encodeURIComponent(',variables('singlequote'),'Guests',variables('singlequote'),'))}/items/@{encodeURIComponent(triggerBody()?[',variables('singlequote'),'ID',variables('singlequote'),'])}')]"
+                                                        }
+                                                    }
+                                                },
+                                                "runAfter": {},
+                                                "expression": {
+                                                    "and": [
+                                                        {
+                                                            "equals": [
+                                                                "@triggerBody()?['Comments']",
+                                                                "@null"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "type": "If"
+                                            }
+                                        }
+                                    },
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "equals": [
+                                                    "@triggerBody()?['Domain']?['Value']",
+                                                    "Authorised"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                }
+                            },
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Guest_invited": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@triggerBody()?['Status']?['Value']",
+                                            "Pending"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Teams_Adaptive_Card_-_Admin_Domain_Validation": {
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Domain_not_allowed": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "adminDomainValidation",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Teams_Adaptive_Card_-_Approval": {
+                            "runAfter": {},
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "TeamsAdaptiveCardApproval",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Teams_Adaptive_Card_-_Domain_not_allowed": {
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Domain_not_allowed_-_Validation_Required": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "domainNotAllowed",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Teams_Adaptive_Card_-_Domain_not_allowed_-_Validation_Required": {
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Request_declined": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "domainNotAllowedValidationRequired",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Teams_Adaptive_Card_-_Guest_invited": {
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Admin_Domain_Validation": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "guestInvited",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Teams_Adaptive_Card_-_Request_declined": {
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Approval": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "requestDeclined",
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "_Check_for_invited_guest": {
+                            "actions": {
+                                "Post_guest_invited_message_to_user": {
+                                    "runAfter": {
+                                        "Set_guestInvited_Adaptive_Card": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "messageBody": "@{variables('guestInvited')}",
+                                            "recipient": {
+                                                "to": "@triggerBody()?['Author']?['Email']"
+                                            }
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['teams']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/flowbot/actions/adaptivecard/recipienttypes/user"
+                                    }
+                                },
+                                "Set_guestInvited_Adaptive_Card": {
+                                    "runAfter": {},
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "guestInvited",
+                                        "value": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Large\",\n            \"weight\": \"Bolder\",\n            \"text\": \"Guest Request approved\",\n            \"color\": \"Good\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"weight\": \"Bolder\",\n                            \"text\": \"**Guest:** @{triggerBody()?['EmailAddress']}\",\n                            \"wrap\": true\n                        }\n                    ],\n                    \"width\": \"stretch\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Your request has been approved.\\nYour guest was added to the tenant. You can now add the guest to the service and start collaborating.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Request Details:\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\",\n            \"separator\": true,\n            \"spacing\": \"Large\",\n            \"color\": \"Accent\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**First Name:** @{triggerBody()?['Title']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Last Name:** @{triggerBody()?['Surname']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Organization:** @{triggerBody()?['Organisation']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Approver Details:\",\n            \"wrap\": true,\n            \"separator\": true,\n            \"spacing\": \"Large\",\n            \"color\": \"Accent\",\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Approved By:** @{triggerBody()?['Approver']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"**Comment:** @{triggerBody()?['Comments']}\",\n            \"wrap\": true\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.2\"\n}"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Teams_Adaptive_Card_-_Guest_invited": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@triggerBody()?['Status']?['Value']",
+                                            "Invited"
+                                        ]
+                                    },
+                                    {
+                                        "not": {
+                                            "equals": [
+                                                "@triggerBody()?['Approver']",
+                                                "@null"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "not": {
+                                            "equals": [
+                                                "@triggerBody()?['Manager']",
+                                                "@null"
+                                            ]
+                                        }
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "sharepointonline": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-sharepointonline')]",
+                                "connectionName": "requestaguest-sharepointonline",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/sharepointonline')]"
+                            },
+                            "teams": {
+                                "connectionId": "[concat('/subscriptions/',parameters('subscriptionId'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Web/connections/requestaguest-teams')]",
+                                "connectionName": "requestaguest-teams",
+                                "id": "[concat('/subscriptions/',parameters('subscriptionId'),'/providers/Microsoft.Web/locations/',parameters('location'),'/managedApis/teams')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

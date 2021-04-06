@@ -1,0 +1,28 @@
+{
+    "Tenant": {
+        "SubscriptionId": "a4d1fc09-0364-4046-8be3-xxxxxxxxxxxx",
+        "TenantId": "a626c08c-5b73-45f7-bbf9-xxxxxxxxxxxx",
+        "TenantName": "M365xxxxxxx"
+    },
+    "Azure": {
+        "Location": "ukwest",
+        "AppRegistrationName": "ar-request-a-guest",
+        "ResourceGroup": "rg-request-a-guest",
+        "ServiceAccountUPN": "service.guest@xxxxxxxxxxx.onmicrosoft.com",
+        "KeyVaultName": "kv-request-a-guest-te0b9",
+        "AutomationAccountName": "aa-request-a-guest"
+
+    },
+    "Office365": {
+        "GuestApproverGroup": "Guest-Approver"
+    },
+    "SharePointSite": {
+        "RequestsSiteName": "sp-request-a-guest",
+        "RequestsSiteDesc": "Request a Guest site",
+        "ManagedPath": "sites"
+    },
+    "MicrosoftTeams": {
+        "ApprovalTeamGroupId": "cb8de243-5682-4cb0-a59e-xxxxxxxxxxxx",
+        "ApprovalChannelId": "19:33e84eaaccd140ccb319xxxxxxxxxxxx@thread.tacv2"
+    }
+}

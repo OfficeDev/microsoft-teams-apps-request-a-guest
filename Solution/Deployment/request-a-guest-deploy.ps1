@@ -207,7 +207,7 @@ function createRequestsSharePointSite {
         if (!(Get-PnPTenantSite -Url $spSiteUrl -ErrorAction:SilentlyContinue)) {
             # Site will be created with current user connected to PnP as the owner/primary admin
             try {
-                Write-Host('Creating Teams Requests SharePoint site: {0}' -f $spSiteName)
+                Write-Host('Creating Guest Requests SharePoint site: {0}' -f $spSiteName)
                 New-PnPSite -Type TeamSite -Title $spSiteName -Alias $spSiteAlias -Description $spSiteDesc -ErrorAction:Stop
                 Write-Host('Site "{0}" Site was successful created' -f $spSiteName)
                 

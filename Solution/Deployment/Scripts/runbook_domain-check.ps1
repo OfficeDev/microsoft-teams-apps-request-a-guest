@@ -3,7 +3,7 @@
 ---------------------------------------------------------------------------------------------------------------------------
 Authors : Tobias Heim (Sr. Customer Engineer - Microsoft)
           Kris Wilson (Sr. Customer Engineer - Microsoft)
-Version : 1.0
+Version : 1.1
 -----------------------------------------------------------------------------------------------------------------------------------
 DISCLAIMER:
    THIS CODE IS SAMPLE CODE. THESE SAMPLES ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.
@@ -22,8 +22,13 @@ Param (
 
 # Import Module
 Import-Module AzureADPreview
+
 # Connect to Azure AD
-Connect-AzureAD -Credential (Get-AutomationPSCredential -Name 'ragGuest') |Out-Null
+try {
+    Connect-AzureAD -Credential (Get-AutomationPSCredential -Name 'ragGuest') -ErrorAction:Stop |Out-Null
+} catch {
+    throw('Failed to connect to Azure AD: {0}' -f $_.Exception.Message)
+} 
 
 # Get Azure AD Policy
 $B2BPolicy = Get-AzureADPolicy -All:$true | Where-Object {$_.DisplayName -eq "B2BManagementPolicy"}

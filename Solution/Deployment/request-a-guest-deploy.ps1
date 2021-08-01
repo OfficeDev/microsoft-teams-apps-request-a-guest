@@ -18,7 +18,7 @@
 -----------------------------------------------------------------------------------------------------------------------------------
 
 Authors : Tobias Heim (Sr. Customer Engineer - Microsoft)
-Version : 1.0
+Version : 1.1
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -634,7 +634,7 @@ function consentApiConnections {
 #endregion
 #region Configuration Imput Import/ Validation and Module Installation
 
-Write-Host "Starting Request-a-Guest App Deployment`nVersion 1.0 - April 2021" -ForegroundColor Yellow
+Write-Host "Starting Request-a-Guest App Deployment`nVersion 1.1 - July 2021" -ForegroundColor Yellow
 
 # Configfiles
 $listTemplatePath = Join-Path $PSScriptRoot -ChildPath "\Config\Guests.xml"
@@ -783,6 +783,7 @@ createResourceGroup -AzureRgName $ResourceGroup -AzureLocation $Location
 # Generate base64 secret for app registration
 $guid = New-Guid
 $appSecret = ([System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($guid))))
+$appSecret += ((33..33) + (35..36) + (45..45) + (63..64) + (126..126) |ForEach-Object {[char]$_}) | Get-Random -Count 1
 
 # Connect to Azure CLI
 Write-Host 'Connect to Azure CLI...'

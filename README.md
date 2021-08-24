@@ -44,33 +44,33 @@ Once organisations control access this way there is a need to establish an opera
 
 - The user who requested the guest is informed both through the app and via a Teams chat message.
 
-![My Requests](https://www.saibot-lab.com/GitHub/request-a-guest/request-a-guest_myRequests.png "My Requests")  
+![My Requests](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Images/request-a-guest_myRequests.png "My Requests")  
 *My Requests page*
 <br/>
 <br/>
 
-![Approve Requests](https://www.saibot-lab.com/GitHub/request-a-guest/request-a-guest_ApproveRequests1.png "Approve Requests")  
+![Approve Requests](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Images/request-a-guest_ApproveRequests1.png "Approve Requests")  
 *Approve requests within the app*
 <br/>
 <br/>
 
-![Approve Requests](https://www.saibot-lab.com/GitHub/request-a-guest/request-a-guest_ApproveRequests2.png "Approve Requests")  
+![Approve Requests](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Images/request-a-guest_ApproveRequests2.png "Approve Requests")  
 *Provide a comment on approval or rejection*
 <br/>
 <br/>
 
-![Teams Approval](https://www.saibot-lab.com/GitHub/request-a-guest/rag-teams-approval.png "Approve Requests")
+![Teams Approval](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Images/rag-teams-approval.png "Approve Requests")
 
 *Approve or decline requests with a Teams adaptive card*
 <br/>
 <br/>
 
-![My Approve Requests](https://www.saibot-lab.com/GitHub/request-a-guest/request-a-guest_myRequestsApproved.png "My Approve Requests")  
+![My Approve Requests](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Images/request-a-guest_myRequestsApproved.png "My Approve Requests")  
 *End user notification of approval or rejection in the app*
 <br/>
 <br/>
 
-![Teams Approval Notification](https://www.saibot-lab.com/GitHub/request-a-guest/rag-guest-approved-teams.png "Teams Approval Notification")  
+![Teams Approval Notification](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Images/rag-guest-approved-teams.png "Teams Approval Notification")  
 *Teams chat message back to the end user with the verdict*
 <br/>
 <br/>

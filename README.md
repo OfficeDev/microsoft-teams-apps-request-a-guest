@@ -25,7 +25,7 @@ Once organisations control access this way there is a need to establish an opera
 - Once approved, guest invites are automatically issued.
 - When the invite is issued the original requestor is added as the manager of the guest. This helps to ensure that the guest can be tracked back to the original requestor
 
-![New Request](https://www.saibot-lab.com/GitHub/request-a-guest/request-a-guest_form.png "New Request")
+![New Request](https://github.com/OfficeDev/microsoft-teams-apps-request-a-guest/wiki/Images/request-a-guest_form.png "New Request")
 *New Request form*
 
 **Request Process Wizard:**

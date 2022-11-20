@@ -9,12 +9,13 @@
         "AppRegistrationName": "ar-request-a-guest",
         "ResourceGroup": "rg-request-a-guest",
         "ServiceAccountUPN": "service.guest@xxxxxxxxxxx.onmicrosoft.com",
-        "KeyVaultName": "kv-request-a-guest-te0b9",
+        "KeyVaultName": "kv-request-a-guest",
         "AutomationAccountName": "aa-request-a-guest"
 
     },
     "Office365": {
-        "GuestApproverGroup": "Guest-Approver"
+        "GuestApproverGroup": "Guest-Approver",
+        "GuestRequesterGroup": "Guest-Requestor"
     },
     "SharePointSite": {
         "RequestsSiteName": "sp-request-a-guest",

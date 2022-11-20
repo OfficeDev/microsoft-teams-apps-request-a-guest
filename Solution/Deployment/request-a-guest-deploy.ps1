@@ -17,8 +17,8 @@
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
-Authors : Tobias Heim (Sr. Customer Engineer - Microsoft)
-Version : 1.1
+Authors : Tobias Heim (Sr. CSA-E - Microsoft)
+Version : 1.2
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -79,7 +79,7 @@ function installModules ($modules) {
                 }
                 try {
                     Write-Host('Install PowerShell Module {0}' -f $module)
-                    Install-Module -Name $module -Scope CurrentUser -RequiredVersion "1.4.0" -AllowClobber -Confirm:$false
+                    Install-Module -Name $module -Scope CurrentUser -AllowClobber -Confirm:$false -MaximumVersion 1.9.0
                 } catch {
                     throw('Failed to install PowerShell module {0}: {1}' -f $module, $_.Exception.Message)
                 } 
@@ -146,7 +146,8 @@ function configureSharePointSite {
     param (
         [string]$ServiceAccountUPN,
         [string]$spListTemplate,
-        [string]$ApproverGroup
+        [string]$ApproverGroup,
+        [string]$RequesterGroup
     )
 
     # Apply SharePoint list template
@@ -157,8 +158,9 @@ function configureSharePointSite {
         throw('Error occured while applying SharePoint list template: {0}' -f $_.Exception.Message)
     }
 
-    # Get owners group
+    # Get owners & requester group
     $spGroup = Get-PnPGroup | Where-Object Title -Match "Owners"
+    $spGroupRequester = Get-PnPGroup | Where-Object Title -Match "Members"
 
     if ($spGroup.Users |Where-Object {$_.Email -ne $ServiceAccountUPN}) {
         # Add service account to owners group
@@ -180,17 +182,14 @@ function configureSharePointSite {
         throw('Error occured while adding the "{0}" to SharePoint site owners group: {1}' -f $ApproverGroup, $_.Exception.Message)
     }
 
-    # Get Members Group of SP site
-    $spMembers = Get-PnPGroup | Where-Object Title -Match "Members"
-
-    # Add the everyone group to members group
+    # Add the requester group to owners group
     try {
-        Write-Host('Adding Group "Everyone except external users" to members group')
-        $Everyone = "Everyone except external users"
-        Add-PnPGroupMember -LoginName $Everyone -Group $spMembers -ErrorAction:Stop
+        Write-Host('Adding Group "{0}" to members group' -f $RequesterGroup)
+        Add-PnPGroupMember -LoginName $RequesterGroup -Group $spGroupRequester -ErrorAction:Stop
     } catch {
-        throw('Error occured while adding the everyone group to SharePoint site members group: {0}' -f $_.Exception.Message)
-    }
+        throw('Error occured while adding the "{0}" to SharePoint site owners group: {1}' -f $RequesterGroup, $_.Exception.Message)
+    } 
+
 }
 
 # Function to create SharePoint Site
@@ -202,7 +201,8 @@ function createRequestsSharePointSite {
         [string]$spSiteDesc,
         [string]$saUPN,
         [string]$listTemplate,
-        [string]$ApproverGroup
+        [string]$ApproverGroup,
+        [string]$RequesterGroup
     )
         if (!(Get-PnPTenantSite -Url $spSiteUrl -ErrorAction:SilentlyContinue)) {
             # Site will be created with current user connected to PnP as the owner/primary admin
@@ -227,6 +227,7 @@ function createRequestsSharePointSite {
                     ServiceAccountUPN = $saUPN
                     spListTemplate = $listTemplate
                     ApproverGroup = $ApproverGroup
+                    RequesterGroup = $RequesterGroup
                 }
                 configureSharePointSite @spConfigParams
             } catch {
@@ -268,20 +269,19 @@ function getAzureADApp {
     return $app
 }
 
-# Function to create Azure app registration
+# Function to create or update the required Azure app registration
 function createAzureADApp {
     param (
         [String]$appName,
-        [string]$manifestPath,
-        [string]$appSecret
+        [string]$manifestPath
     )
-    # Check if the app already exists - script has been previously executed
+    # Check if the app already exists
     $app = GetAzureADApp -Name $appName
     
     if ($app) {
-        # Update azure ad app registration using CLI
+        # Update Azure ad app registration using Azure CLI
         Write-Host('Azure AD App Registration {0} already exists - updating existing app...' -f $appName)
-        az ad app update --id $app.appId --required-resource-accesses $manifestPath --password $appSecret |ConvertFrom-Json
+        az ad app update --id $app.appId --required-resource-accesses $manifestPath |Out-Null
         if (!$?) {
             throw('Failed to update AD App {0}' -f $appName)
         }
@@ -290,28 +290,44 @@ function createAzureADApp {
         Write-Host('Updated Azure AD App Registration: {0}' -f $AppName)
     } 
     else {
-        # Create the app
+        # Create Azure ad app registration using Azure CLI
         Write-Host('Creating Azure AD App Registration: {0}...' -f $appName)
-        # Create azure ad app registration using CLI
-        az ad app create --display-name $appName --required-resource-accesses $manifestPath --password $appSecret --end-date '2299-12-31T11:59:59+00:00' |ConvertFrom-Json # TODO Create Time automatically
+        az ad app create --display-name $appName --required-resource-accesses $manifestPath |Out-Null
         if (!$?) {
             throw('Failed to create AD App Registration {0}' -f $appName)
         }
         Write-Host('Waiting for App Registration {0} to finish creating...' -f $appName)
         Start-Sleep -s 60
         Write-Host('Successfully created Azure AD App Registration: {0}...' -f $appName)
+
+        # Get the app registration details
+        $app = GetAzureADApp -Name $appName
     }
 
-    # Grant admin consent for app registration required permissions using CLI
+    # (OPTIONAL) End-date for the secret is set to 365 days from now
+    #$endDate = (Get-Date).AddDays(90).ToString("yyyy-MM-dd")
+
+    # Set the app registration secret
+    Write-Host('Setting Azure AD App Registration Secret: {0}...' -f $appName)
+    $appSec = az ad app credential reset --id $app.appId # --end-date $endDate
+    if (!$?) {
+        throw('Failed to set Azure AD App Registration Secret: {0}' -f $appName)
+    }
+    # Get app registration secret
+    $appDetails = $appSec |ConvertFrom-Json
+    $appSecValue = ($appDetails).password
+
+    # Grant admin consent for app registration required permissions using Azure CLI
     Write-Host('Granting admin content to App Registration: {0}' -f $appName)
-    $app = GetAzureADApp -Name $appName
-    az ad app permission admin-consent --id $app.appId |ConvertFrom-Json
+    az ad app permission admin-consent --id $app.appId |Out-Null
     if (!$?) {
         throw('Failed to grant admin content to App Registration: {0}' -f $appName)
     }
     Write-Host "Waiting for admin consent to complete..."
     Start-Sleep -s 60
     Write-Host('Granted admin consent to App Regiration: {0}' -f $AppName)
+
+    return $appSecValue
 }
 
 # Function to create Azure Key Vault
@@ -412,7 +428,7 @@ function createAutomationAccount {
     }
 }
 
-# add Service account to Key Vault
+# Add Service account to Key Vault
 function grantAzureKvPermissionToServiceAcount {
     param (
         [String]$subscriptionId,
@@ -433,7 +449,7 @@ function grantAzureKvPermissionToServiceAcount {
     }
 }
 
-# add Service account to automation account
+# Add Service account to automation account
 function grantAzureAaPermissionToServiceAcount {
     param (
         [String]$subscriptionId,
@@ -455,25 +471,25 @@ function grantAzureAaPermissionToServiceAcount {
 }
 
 # Function to create Approver Security Group
-function createApproverGroup {
+function createGroup {
     param (
         [String]$GroupName
     )
     if (!(Get-AzureADGroup -Filter "DisplayName eq '$GroupName'" -ErrorAction:SilentlyContinue)) {
-        $Description = "Request-a-Guest App Approver Group"
+        $Description = "Request-a-Guest App Group"
         try {
             New-AzureADGroup -Description $Description -DisplayName $GroupName -MailEnabled $false -SecurityEnabled $true -MailNickName $GroupName -ErrorAction:Stop
         }
         catch {
-            throw('Failed to create Approver Security Group {0}: {1}' -f $GroupName, $_.Exception.Message)
+            throw('Failed to create Security Group {0}: {1}' -f $GroupName, $_.Exception.Message)
         }
     } else {
-        Write-Host('Approver Group already exists: {0}' -f $GroupName)
+        Write-Host('Group already exists: {0}' -f $GroupName)
     }
 }
 
 # Function to get the Approver Security Group
-function getApproverGroup {
+function getGroup {
     param (
         [String]$GroupName
     )
@@ -482,7 +498,7 @@ function getApproverGroup {
         Return $Group.ObjectId
     }
     catch {
-        throw('Failed to get Approver Security Group {0}: {1}' -f $GroupName, $_.Exception.Message)
+        throw('Failed to get Security Group {0}: {1}' -f $GroupName, $_.Exception.Message)
     }
 }
 
@@ -493,7 +509,7 @@ function addSaToApproverGroup {
         [String]$saUPN
     )
     # Get approver group object ID
-    $GroupObjId = getApproverGroup -GroupName $GroupName
+    $GroupObjId = getGroup -GroupName $GroupName
     # Get service account object ID
     $SaObjId = (Get-AzureADUser -Filter "UserPrincipalName eq '$saUPN'").ObjectId
     # Check if is service account is already member of the group
@@ -634,7 +650,7 @@ function consentApiConnections {
 #endregion
 #region Configuration Imput Import/ Validation and Module Installation
 
-Write-Host "Starting Request-a-Guest App Deployment`nVersion 1.1 - July 2021" -ForegroundColor Yellow
+Write-Host "Starting Request-a-Guest App Deployment`nVersion 1.2 - November 2022" -ForegroundColor Yellow
 
 # Configfiles
 $listTemplatePath = Join-Path $PSScriptRoot -ChildPath "\Config\Guests.xml"
@@ -670,9 +686,10 @@ $ServiceAccountUPN = $ragConfig.Azure.ServiceAccountUPN
 $RequestsSiteName = $ragConfig.SharePointSite.RequestsSiteName
 $RequestsSiteDesc = $ragConfig.SharePointSite.RequestsSiteDesc
 $ManagedPath = $ragConfig.SharePointSite.ManagedPath
-$keyVaultName = $ragConfig.Azure.KeyVaultName
+$keyVaultName = (($ragConfig.Azure.KeyVaultName) + (-join (((97..122) | ForEach-Object {[char]$_}) + (0..9) |Get-Random -Count 5)))
 $AutomationAccountName = $ragConfig.Azure.AutomationAccountName
 $GuestApproverGroup = $ragConfig.Office365.GuestApproverGroup
+$GuestRequesterGroup = $ragConfig.Office365.GuestRequesterGroup
 $teamsGroupId = $ragConfig.MicrosoftTeams.ApprovalTeamGroupId
 $teamsChannelId = $ragConfig.MicrosoftTeams.ApprovalChannelId
 
@@ -740,7 +757,9 @@ if (!$Mfa) {
 
 # Create approver group
 Write-Host('Create Approver Security Group {0}' -f $GuestApproverGroup)
-createApproverGroup -GroupName $GuestApproverGroup
+createGroup -GroupName $GuestApproverGroup
+Write-Host('Create Approver Security Group {0}' -f $GuestRequesterGroup)
+createGroup -GroupName $GuestRequesterGroup
 # Wait 30 sec before the next step
 Start-Sleep 30
 
@@ -771,6 +790,7 @@ $spParams = @{
     saUPN = $ServiceAccountUPN
     listTemplate = $listTemplatePath
     ApproverGroup = $GuestApproverGroup
+    RequesterGroup = $GuestRequesterGroup
 }
 createRequestsSharePointSite @spParams
 
@@ -779,11 +799,6 @@ createRequestsSharePointSite @spParams
 
 # Create Azure resource group
 createResourceGroup -AzureRgName $ResourceGroup -AzureLocation $Location
-
-# Generate base64 secret for app registration
-$guid = New-Guid
-$appSecret = ([System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($guid))))
-$appSecret += ((33..33) + (35..36) + (45..45) + (63..64) + (126..126) |ForEach-Object {[char]$_}) | Get-Random -Count 1
 
 # Connect to Azure CLI
 Write-Host 'Connect to Azure CLI...'
@@ -803,7 +818,7 @@ if (!$Mfa) {
 
 # Create Azure App Regiration
 Write-Host('Create Azure App Regirstration: {0}' -f $AppRegistrationName)
-createAzureADApp -appName $AppRegistrationName -manifestPath $manifest -appSecret $appSecret
+$appSecret = createAzureADApp -appName $AppRegistrationName -manifestPath $manifest
 
 # Create Azure Automation Account
 $AutomationAccountParams = @{
@@ -852,7 +867,7 @@ $automationAccountAccessParams = @{
 grantAzureAaPermissionToServiceAcount @automationAccountAccessParams
 
 Write-Host('Get Approver Security Group {0}' -f $GuestApproverGroup)
-$ApproverGroup = getApproverGroup -GroupName $GuestApproverGroup
+$ApproverGroup = getGroup -GroupName $GuestApproverGroup
 
 # Install API Connections and Logic Apps
 $logicappParams = @{
